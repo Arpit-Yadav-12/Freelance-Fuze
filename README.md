@@ -1,6 +1,14 @@
-# Fiverr Clone
+# Freelance Fuze
 
-A full-stack Fiverr clone built with modern technologies.
+Fiverr Clone is a full-stack freelance marketplace web application built to empower aspiring freelancers by providing a real-world platform to showcase their skills, build portfolios, earn through projects, and gain credibility through verified ratings and achievements. This platform bridges the gap between clients seeking quality services and newcomer freelancers aiming to gain practical experience and reputation in the professional world.
+
+🧠 Core Vision
+This project isn't just a Fiverr replica — it's a platform designed with career-building and credibility at its core. Beyond monetary transactions, freelancers can:
+
+- Build authentic portfolios based on real gigs.
+- Earn star ratings from clients based on work quality.
+- Collect trophies as achievements for gig completions.
+- Gain verified social proof that can be referenced in resumes and job applications.
 
 ## Tech Stack
 
