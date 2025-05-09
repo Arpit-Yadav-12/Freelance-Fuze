@@ -1,0 +1,148 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  role      String    @default("buyer")
+  clerkId   String    @unique
+  profile   Profile?
+  services  Service[]
+  orders    Order[]
+  reviews   Review[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  Message   Message[]
+  notifications Notification[]
+}
+
+model Profile {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio           String?
+  location      String?
+  website       String?
+  socialLinks   Json?
+  skills        String[]
+  hourlyRate    Float?
+  category      String?
+  portfolio     String?
+  experience    String?
+  education     String?
+  averageRating Float    @default(0)
+  totalReviews  Int      @default(0)
+  completedGigs Int      @default(0)
+  trophyLevel   String   @default("none") // none, bronze, silver, gold, platinum, diamond
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Service {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  category    String
+  images      String[]
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packages    Package[]
+  orders      Order[]
+  reviews     Review[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Package {
+  id           String   @id @default(cuid())
+  name         String
+  description  String
+  price        Float
+  deliveryTime Int
+  features     String[]
+  serviceId    String
+  service      Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  orders       Order[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Order {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId   String
+  service     Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  status      String    @default("pending") // pending, accepted, rejected, in_progress, completed, cancelled
+  paymentStatus String  @default("pending") // pending, paid, refunded
+  packageId   String
+  package     Package   @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  totalAmount Float
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  Message     Message[]
+  Transaction Transaction[]
+  reviews     Review[]
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  rating    Int      @db.SmallInt // Using SmallInt for 1-5 rating
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, orderId]) // Prevent duplicate reviews for the same order
+  @@index([serviceId])
+  @@index([userId])
+  @@index([orderId])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  amount    Float
+  status    String   @default("pending") // pending, completed, failed, refunded
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // 'order_created' | 'order_cancelled' | 'order_completed' | 'order_updated'
+  message   String
+  data      Json
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
