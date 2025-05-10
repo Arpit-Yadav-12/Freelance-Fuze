@@ -130,6 +130,13 @@ const ServiceDetails: React.FC = () => {
     }
 
     try {
+      // Find the selected package details
+      const selectedPackageDetails = service?.packages.find(pkg => pkg.id === selectedPackage);
+      if (!selectedPackageDetails) {
+        setError('Invalid package selected');
+        return;
+      }
+
       const response = await fetch(`${import.meta.env.VITE_API_URL}/orders`, {
         method: 'POST',
         headers: {
@@ -139,6 +146,7 @@ const ServiceDetails: React.FC = () => {
         body: JSON.stringify({
           serviceId: id,
           packageId: selectedPackage,
+          totalAmount: selectedPackageDetails.price,
         }),
       });
 
@@ -230,6 +238,7 @@ const ServiceDetails: React.FC = () => {
               <div className="mb-6">
                 <ReviewForm
                   serviceId={id!}
+                  orderId={orderId!}
                   onSubmit={handleReviewSubmit}
                   onCancel={() => setShowReviewForm(false)}
                 />

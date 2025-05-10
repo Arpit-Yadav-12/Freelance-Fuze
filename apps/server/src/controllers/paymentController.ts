@@ -5,11 +5,27 @@ const prisma = new PrismaClient();
 
 export const createPayment = async (req: Request, res: Response) => {
   const { amount, orderId } = req.body;
+  
+  // Validate required fields
+  if (!amount || !orderId) {
+    return res.status(400).json({ 
+      error: 'Amount and orderId are required' 
+    });
+  }
+
+  // Validate amount is a valid number
+  const numericAmount = parseFloat(amount);
+  if (isNaN(numericAmount)) {
+    return res.status(400).json({ 
+      error: 'Amount must be a valid number' 
+    });
+  }
+
   try {
     // Create a transaction record
     const payment = await prisma.transaction.create({
       data: {
-        amount,
+        amount: numericAmount,
         status: 'pending',
         orderId,
       },

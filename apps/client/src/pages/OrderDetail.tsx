@@ -11,7 +11,7 @@ interface Order {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
-  price: number;
+  totalAmount: number;
   service: {
     id: string;
     title: string;
@@ -81,10 +81,19 @@ const OrderDetail: React.FC = () => {
           throw new Error('Invalid order data received');
         }
 
+        // Log the order data for debugging
         console.log('Order Data:', data.order);
-        console.log('Service User ID:', data.order.service?.user?.id);
         
-        setOrder(data.order);
+        // Ensure all required fields are present
+        const orderData = {
+          ...data.order,
+          service: data.order.service || null,
+          seller: data.order.seller || null,
+          buyer: data.order.buyer || null,
+          totalAmount: data.order.totalAmount || 0,
+        };
+
+        setOrder(orderData);
 
         // Get the current user's ID from the authenticated user data
         const userResponse = await fetch(`${import.meta.env.VITE_API_URL}/auth/verify-user`, {
@@ -99,11 +108,9 @@ const OrderDetail: React.FC = () => {
 
         const userData = await userResponse.json();
         const currentUserId = userData.user.id;
-        console.log('Current User ID:', currentUserId);
-
+        
         // Check if the current user is the seller by comparing with the service's user ID
-        const isUserSeller = data.order.service?.user?.id === currentUserId;
-        console.log('Is User Seller:', isUserSeller);
+        const isUserSeller = orderData.service?.user?.id === currentUserId;
         setIsSeller(isUserSeller);
       } catch (error) {
         setError('Failed to load order details');
@@ -340,286 +347,264 @@ const OrderDetail: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div className="container mx-auto px-4">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Main Content */}
-          <div className="lg:w-2/3">
-            {/* Order Status */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 mb-8">
-              <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Order #{order.id}</h1>
-                <span
-                  className={`px-4 py-2 rounded-full text-sm font-medium ${
-                    order.status === 'pending'
-                      ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200'
-                      : order.status === 'accepted'
-                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
-                      : order.status === 'rejected'
-                      ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
-                      : order.status === 'in_progress'
-                      ? 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
-                      : order.status === 'completed'
-                      ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                      : 'bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200'
-                  }`}
-                >
-                  {order.status.replace('_', ' ').toUpperCase()}
-                </span>
+    <div className="container mx-auto px-4 py-8">
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+        </div>
+      ) : error ? (
+        <div className="text-red-500 text-center">{error}</div>
+      ) : order ? (
+        <div className="space-y-6">
+          {/* Order Header */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Order #{order.id}
+                </h1>
+                <p className="text-gray-500 dark:text-gray-400">
+                  Created on {formatDate(order.createdAt)}
+                </p>
               </div>
-
-              {/* Service Details */}
-              <div className="mb-6">
-                <h2 className="text-lg font-semibold mb-2">Service Details</h2>
-                <div className="flex items-start space-x-4">
-                  <img
-                    src={order.service.images[0] || 'https://via.placeholder.com/150'}
-                    alt={order.service.title}
-                    className="w-24 h-24 object-cover rounded-lg"
-                  />
-                  <div>
-                    <h3 className="font-medium">{order.service.title}</h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm">
-                      {order.service.description}
-                    </p>
-                  </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-gray-900 dark:text-white">
+                  ${(order.totalAmount || 0).toFixed(2)}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Payment Status: {order.paymentStatus}
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Order Information */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Buyer</h3>
-                  <p className="mt-1">{order.buyer?.name || 'Unknown Buyer'}</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{order.buyer?.email || 'No email available'}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Seller</h3>
-                  <p className="mt-1">{order.seller?.name || 'Unknown Seller'}</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{order.seller?.email || 'No email available'}</p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Order Date</h3>
-                  <p className="mt-1">
-                    {new Date(order.createdAt).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </p>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Amount</h3>
-                  <p className="mt-1">${order.price}</p>
-                </div>
-                {order.status === 'completed' && order.completedAt && (
-                  <div className="col-span-2">
-                    <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Completed On</h3>
-                    <p className="mt-1">
-                      {new Date(order.completedAt).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Review Section - Only show for completed orders and buyers */}
-              {(() => {
-                console.log('Review Section Debug:', {
-                  isSeller,
-                  orderStatus: order.status,
-                  hasReview: order.hasReview,
-                  shouldShowReview: !isSeller && order.status === 'completed' && !order.hasReview
-                });
-                return !isSeller && order.status === 'completed' && !order.hasReview && (
-                  <div className="mt-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                    <h2 className="text-lg font-semibold mb-4">Leave a Review</h2>
-                    {showReviewForm ? (
-                      <ReviewForm
-                        serviceId={order.service.id}
-                        orderId={order.id}
-                        onSubmit={handleReviewSubmit}
-                        onCancel={() => setShowReviewForm(false)}
-                      />
-                    ) : (
-                      <button
-                        onClick={() => setShowReviewForm(true)}
-                        className="bg-[#1DBF73] text-white px-6 py-3 rounded-lg hover:bg-[#19a463] transition-colors font-medium"
-                      >
-                        Write a Review
-                      </button>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Show review status if review exists */}
-              {(() => {
-                console.log('Review Status Debug:', {
-                  isSeller,
-                  orderStatus: order.status,
-                  hasReview: order.hasReview,
-                  shouldShowStatus: !isSeller && order.status === 'completed' && order.hasReview
-                });
-                return !isSeller && order.status === 'completed' && order.hasReview && (
-                  <div className="mt-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
-                    <h2 className="text-lg font-semibold mb-4">Your Review</h2>
-                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                      <p className="text-gray-600 dark:text-gray-300">
-                        You have already submitted a review for this order.
-                      </p>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Action Buttons */}
-              <div className="mt-6">
-                {isSeller ? (
-                  // Seller Actions
+          {/* Service and User Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Service Information */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Service Details</h2>
+              <div className="space-y-4">
+                {order.service ? (
                   <>
-                    {order.status === 'pending' && (
-                      <div className="flex space-x-4">
-                        <button
-                          onClick={() => handleStatusUpdate('accepted')}
-                          className="flex-1 bg-[#1DBF73] text-white px-4 py-2 rounded-lg hover:bg-[#19a463] transition-colors"
-                        >
-                          Accept Order
-                        </button>
-                        <button
-                          onClick={() => handleStatusUpdate('rejected')}
-                          className="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-                        >
-                          Reject Order
-                        </button>
+                    <div>
+                      <h3 className="font-medium text-gray-900 dark:text-white">{order.service.title}</h3>
+                      <p className="text-gray-500 dark:text-gray-400">{order.service.description}</p>
+                    </div>
+                    {order.service.images && order.service.images.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {order.service.images.map((image, index) => (
+                          <img
+                            key={index}
+                            src={image}
+                            alt={`Service ${index + 1}`}
+                            className="w-full h-32 object-cover rounded"
+                          />
+                        ))}
                       </div>
-                    )}
-                    {order.status === 'accepted' && (
-                      <button
-                        onClick={() => handleStatusUpdate('in_progress')}
-                        className="w-full bg-[#1DBF73] text-white px-4 py-2 rounded-lg hover:bg-[#19a463] transition-colors"
-                      >
-                        Start Working
-                      </button>
-                    )}
-                    {order.status === 'in_progress' && (
-                      <button
-                        onClick={() => handleStatusUpdate('completed')}
-                        className="w-full bg-[#1DBF73] text-white px-4 py-2 rounded-lg hover:bg-[#19a463] transition-colors"
-                      >
-                        Mark as Completed
-                      </button>
                     )}
                   </>
                 ) : (
-                  // Buyer Actions
-                  <>
-                    {order.status === 'pending' && (
-                      <button
-                        onClick={handleCancel}
-                        className="w-full bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-                      >
-                        Cancel Order
-                      </button>
-                    )}
-                  </>
+                  <p className="text-gray-500 dark:text-gray-400">Service information not available</p>
                 )}
               </div>
             </div>
 
-            {/* Messages Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4">Messages</h2>
-              <div className="space-y-4 mb-6">
-                {order.messages?.map((msg) => (
+            {/* User Information */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">User Information</h2>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-medium text-gray-900 dark:text-white">Seller</h3>
+                  {order.seller ? (
+                    <>
+                      <p className="text-gray-500 dark:text-gray-400">{order.seller.name || 'Name not available'}</p>
+                      <p className="text-gray-500 dark:text-gray-400">{order.seller.email || 'Email not available'}</p>
+                    </>
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400">Seller information not available</p>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900 dark:text-white">Buyer</h3>
+                  {order.buyer ? (
+                    <>
+                      <p className="text-gray-500 dark:text-gray-400">{order.buyer.name || 'Name not available'}</p>
+                      <p className="text-gray-500 dark:text-gray-400">{order.buyer.email || 'Email not available'}</p>
+                    </>
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400">Buyer information not available</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Order Status and Actions */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Order Status</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="text-gray-900 dark:text-white">
+                  Current Status: <span className="font-medium">{order.status}</span>
+                </div>
+                {order.paymentStatus === 'pending' && !isSeller && (
+                  <button
+                    onClick={() => setShowPaymentModal(true)}
+                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  >
+                    Make Payment
+                  </button>
+                )}
+              </div>
+
+              {/* Seller Actions */}
+              {isSeller && (
+                <div className="space-y-2">
+                  {order.status === 'pending' && (
+                    <div className="flex space-x-4">
+                      <button
+                        onClick={() => handleStatusUpdate('accepted')}
+                        className="flex-1 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                      >
+                        Accept Order
+                      </button>
+                      <button
+                        onClick={() => handleStatusUpdate('rejected')}
+                        className="flex-1 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                      >
+                        Reject Order
+                      </button>
+                    </div>
+                  )}
+                  {order.status === 'accepted' && (
+                    <button
+                      onClick={() => handleStatusUpdate('in_progress')}
+                      className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                    >
+                      Start Working
+                    </button>
+                  )}
+                  {order.status === 'in_progress' && (
+                    <button
+                      onClick={() => handleStatusUpdate('completed')}
+                      className="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                    >
+                      Mark as Completed
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Buyer Actions */}
+              {!isSeller && (
+                <div className="space-y-2">
+                  {order.status === 'pending' && (
+                    <button
+                      onClick={handleCancel}
+                      className="w-full bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                    >
+                      Cancel Order
+                    </button>
+                  )}
+                  {order.status === 'completed' && !order.hasReview && (
+                    <button
+                      onClick={() => setShowReviewForm(true)}
+                      className="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                    >
+                      Write a Review
+                    </button>
+                  )}
+                  {order.status === 'completed' && order.hasReview && (
+                    <div className="text-center text-gray-500 dark:text-gray-400">
+                      You have already submitted a review for this order
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Messages Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Messages</h2>
+            <div className="space-y-4 mb-6">
+              {order.messages?.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${
+                    msg.sender.id === order.buyer.id ? 'justify-end' : 'justify-start'
+                  }`}
+                >
                   <div
-                    key={msg.id}
-                    className={`flex ${
-                      msg.sender.id === order.buyer.id ? 'justify-end' : 'justify-start'
+                    className={`max-w-[70%] rounded-lg p-4 ${
+                      msg.sender.id === order.buyer.id
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
                     }`}
                   >
-                    <div
-                      className={`max-w-[70%] rounded-lg p-4 ${
-                        msg.sender.id === order.buyer.id
-                          ? 'bg-[#1DBF73] text-white'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2 mb-2">
-                        <img
-                          src={msg.sender.imageUrl || 'https://via.placeholder.com/32'}
-                          alt={msg.sender.name}
-                          className="w-8 h-8 rounded-full"
-                        />
-                        <span className="font-medium">{msg.sender.name}</span>
-                      </div>
-                      <p className="text-sm">{msg.content}</p>
-                      <p className="text-xs mt-2 opacity-75">
-                        {formatDate(msg.createdAt)}
-                      </p>
+                    <div className="flex items-center space-x-2 mb-2">
+                      <img
+                        src={msg.sender.imageUrl || 'https://via.placeholder.com/32'}
+                        alt={msg.sender.name}
+                        className="w-8 h-8 rounded-full"
+                      />
+                      <span className="font-medium">{msg.sender.name}</span>
                     </div>
+                    <p className="text-sm">{msg.content}</p>
+                    <p className="text-xs mt-2 opacity-75">
+                      {formatDate(msg.createdAt)}
+                    </p>
                   </div>
-                )) || (
-                  <div className="text-center text-gray-500 dark:text-gray-400">
-                    No messages yet
-                  </div>
-                )}
-              </div>
-
-              <form onSubmit={handleSendMessage} className="flex space-x-4">
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#1DBF73]"
-                  disabled={sendingMessage}
-                />
-                <button
-                  type="submit"
-                  disabled={sendingMessage || !message.trim()}
-                  className="bg-[#1DBF73] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#19a463] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {sendingMessage ? 'Sending...' : 'Send'}
-                </button>
-              </form>
+                </div>
+              )) || (
+                <div className="text-center text-gray-500 dark:text-gray-400">
+                  No messages yet
+                </div>
+              )}
             </div>
-          </div>
 
-          {/* Sidebar */}
-          <div className="lg:w-1/3">
-            {/* Add any additional information or actions here */}
+            <form onSubmit={handleSendMessage} className="flex space-x-4">
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Type your message..."
+                className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                disabled={sendingMessage}
+              />
+              <button
+                type="submit"
+                disabled={sendingMessage || !message.trim()}
+                className="bg-green-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {sendingMessage ? 'Sending...' : 'Send'}
+              </button>
+            </form>
           </div>
         </div>
+      ) : null}
 
-        {/* Payment Modal */}
-        {!isSeller && order.status === 'accepted' && order.paymentStatus === 'pending' && (
-          <div className="mt-8">
-            <button
-              onClick={() => setShowPaymentModal(true)}
-              className="bg-[#1DBF73] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#19a463] transition-colors"
-            >
-              Make Payment
-            </button>
-          </div>
-        )}
+      {/* Payment Modal */}
+      {showPaymentModal && order && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          amount={order.totalAmount || 0}
+          orderId={order.id}
+          onSuccess={handlePaymentSuccess}
+          onError={handlePaymentError}
+          onClose={() => setShowPaymentModal(false)}
+        />
+      )}
 
-        {showPaymentModal && (
-          <PaymentModal
-            isOpen={showPaymentModal}
-            onClose={() => setShowPaymentModal(false)}
-            amount={order.price}
-            orderId={order.id}
-            onSuccess={handlePaymentSuccess}
-            onError={handlePaymentError}
-          />
-        )}
-      </div>
+      {/* Review Form Modal */}
+      {showReviewForm && order && (
+        <ReviewForm
+          serviceId={order.service.id}
+          orderId={order.id}
+          onSubmit={handleReviewSubmit}
+          onCancel={() => setShowReviewForm(false)}
+        />
+      )}
     </div>
   );
 };
