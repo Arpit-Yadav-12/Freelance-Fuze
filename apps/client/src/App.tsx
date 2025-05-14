@@ -9,7 +9,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 // Import your components
 import Home from './pages/Home';
 import Explore from './pages/Explore';
-import ServiceDetail from './pages/ServiceDetail';
+import ServiceDetails from './pages/ServiceDetails';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Profile from './pages/Profile';
@@ -33,7 +33,7 @@ function App() {
                 <Routes>
                   <Route path="/" element={<Home />} />
                   <Route path="/explore" element={<Explore />} />
-                  <Route path="/services/:id" element={<ServiceDetail />} />
+                  <Route path="/services/:id" element={<ServiceDetails />} />
                   <Route
                     path="/profile"
                     element={

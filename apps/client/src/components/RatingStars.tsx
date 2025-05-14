@@ -62,9 +62,7 @@ const RatingStars: React.FC<RatingStarsProps> = ({
         {stars}
       </div>
       {showNumber && (
-        <span className="text-sm font-medium text-gray-600">
-          {rating.toFixed(1)}
-        </span>
+        <span className="font-semibold">{typeof rating === 'number' ? rating.toFixed(1) : 'N/A'}</span>
       )}
     </div>
   );

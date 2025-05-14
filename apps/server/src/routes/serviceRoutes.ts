@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { clerkClient } from '@clerk/clerk-sdk-node';
 import { getServices, getServiceById, createService, updateService, deleteService, fixServiceCategories } from '../controllers/serviceController';
+import { getServiceReviews } from '../controllers/reviewController';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -75,6 +76,7 @@ router.post('/upload', verifyClerkSession, upload.single('image'), async (req: A
 // Public routes
 router.get('/', getServices);
 router.get('/:id', getServiceById);
+router.get('/:serviceId/reviews', getServiceReviews);
 
 // Protected routes
 router.post('/', verifyClerkSession, createService);
