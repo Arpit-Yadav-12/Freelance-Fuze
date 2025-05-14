@@ -267,93 +267,97 @@ export const updateOrderStatus = async (req: AuthenticatedRequest, res: Response
   }
 
   try {
-    // Check if order exists and user is authorized
+    // Get the order with service information
     const order = await prisma.order.findUnique({
       where: { id },
       include: {
         service: {
           select: {
-            userId: true,
-            title: true,
-          },
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
+            userId: true
+          }
+        }
+      }
     });
 
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // Only seller can update order status
+    // Check if the user is the seller of the service
     if (order.service.userId !== userId) {
-      return res.status(403).json({ error: 'Only the seller can update order status' });
+      return res.status(403).json({ error: 'Not authorized to update this order' });
     }
 
-    // Validate status transitions
-    const validTransitions: { [key: string]: string[] } = {
-      pending: ['accepted', 'rejected'],
-      accepted: ['in_progress'],
-      in_progress: ['completed'],
-    };
-
-    if (!validTransitions[order.status]?.includes(status)) {
-      return res.status(400).json({ 
-        error: `Invalid status transition. Current status: ${order.status}, Attempted transition to: ${status}` 
-      });
-    }
-
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: { status },
-      include: {
-        service: {
-          select: {
-            id: true,
-            title: true,
-            images: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                profile: true,
-              },
-            },
-          },
-        },
-        package: true,
-      },
-    });
-
-    // Create notification for buyer
-    await prisma.notification.create({
-      data: {
-        userId: order.user.id,
-        type: 'order_updated',
-        message: `Order status updated to ${status} for ${order.service.title}`,
+    // Start a transaction to update order status and seller profile
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      // Update order status
+      const updatedOrder = await tx.order.update({
+        where: { id },
         data: {
-          orderId: order.id,
-          serviceId: order.serviceId,
-          status
+          status,
+          ...(status === 'completed' && { completedAt: new Date() })
+        },
+        include: {
+          service: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              images: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  profile: true
+                }
+              }
+            }
+          },
+          package: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              profile: true
+            }
+          }
+        }
+      });
+
+      // If order is completed, update seller's completed gigs and trophy
+      if (status === 'completed') {
+        // Get current profile
+        const profile = await tx.profile.findUnique({
+          where: { userId: order.service.userId }
+        });
+
+        if (profile) {
+          // Update completed gigs and calculate new trophy level
+          const newCompletedGigs = (profile.completedGigs || 0) + 1;
+          const newTrophyLevel = calculateTrophyLevel(newCompletedGigs);
+
+          // Update profile
+          await tx.profile.update({
+            where: { userId: order.service.userId },
+            data: {
+              completedGigs: newCompletedGigs,
+              trophyLevel: newTrophyLevel
+            }
+          });
         }
       }
+
+      return updatedOrder;
     });
 
-    // Send real-time notification
+    // Send notification to buyer
     if (wsService) {
-      await wsService.createNotification(order.user.id, {
+      wsService.createNotification(order.userId, {
         type: 'order_updated',
-        message: `Order status updated to ${status} for ${order.service.title}`,
-        data: {
-          orderId: order.id,
-          serviceId: order.serviceId,
-          status
-        },
+        message: `Your order has been ${status}`,
+        data: { orderId: id, status },
         createdAt: new Date()
       });
     }
